@@ -1,0 +1,42 @@
+{
+  "name": "Dream Suite",
+  "description": "AI-powered mobile-first artist development platform built with React Native + Expo",
+  "version": "2.0.0",
+  "type": "react-native-expo",
+  "platforms": ["ios", "android", "web"],
+  "primaryLanguage": "typescript",
+  "framework": "expo",
+  "backend": "supabase",
+  "ai": "relevance-ai",
+  "automation": "n8n",
+  "payments": "stripe",
+  "deployment": {
+    "mobile": "eas-build",
+    "web": "vercel"
+  },
+  "contextFiles": [
+    "context/project-overview.md",
+    "context/tech-stack.md",
+    "context/api-docs.md",
+    "context/decisions.md"
+  ],
+  "agents": [
+    "agents/react-native-specialist.md",
+    "agents/supabase-architect.md",
+    "agents/ai-orchestrator.md",
+    "agents/stripe-specialist.md",
+    "agents/data-pipeline-engineer.md",
+    "agents/integration-specialist.md",
+    "agents/security-compliance.md",
+    "agents/vercel-deployment.md",
+    "agents/performance-monitoring.md"
+  ],
+  "currentPhase": "setup",
+  "priorities": [
+    "React Native + Expo project initialization",
+    "Supabase backend setup",
+    "Authentication implementation",
+    "Basic dashboard with real-time metrics",
+    "Stripe payment integration"
+  ]
+}
