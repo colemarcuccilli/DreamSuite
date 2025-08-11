@@ -18,23 +18,22 @@ function AuthNavigator() {
   const { user, loading } = useAuth()
   const router = useRouter()
 
-  useEffect(() => {
-    if (!loading) {
-      if (user) {
-        router.replace('/tabs')
-      } else {
-        router.replace('/auth/login')
-      }
-    }
-  }, [user, loading])
-
+  // Don't redirect automatically - let users access booking pages without auth
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="auth" />
+      <Stack.Screen name="admin" />
+      <Stack.Screen name="booking" />
       <Stack.Screen name="tabs" />
       <Stack.Screen 
         name="modals" 
         options={{ presentation: 'modal' }}
+      />
+      <Stack.Screen 
+        name="index" 
+        options={{
+          title: 'Dream Suite'
+        }}
       />
     </Stack>
   )
