@@ -1,7 +1,9 @@
 import { Platform } from 'react-native'
 import { Booking, Service, PaymentResult, PaymentSession } from '../types/booking'
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'
+const API_URL = typeof window !== 'undefined' 
+  ? window.location.origin 
+  : (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000')
 
 export class StripeBookingService {
   private static instance: StripeBookingService

@@ -1,6 +1,8 @@
 import { Booking, Service, Studio } from '../types/booking'
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'
+const API_URL = typeof window !== 'undefined' 
+  ? window.location.origin 
+  : (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000')
 
 export interface EmailTemplate {
   subject: string

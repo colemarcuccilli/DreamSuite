@@ -9,13 +9,5 @@
       "source": "/(.*)",
       "destination": "/"
     }
-  ],
-  "functions": {
-    "app/api/payments/*.ts": {
-      "maxDuration": 30
-    },
-    "app/api/email/*.ts": {
-      "maxDuration": 10
-    }
-  }
+  ]
 }
