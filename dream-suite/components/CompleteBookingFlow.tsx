@@ -11,6 +11,15 @@ import {
   Alert,
 } from 'react-native'
 import { createClient } from '@supabase/supabase-js'
+import ResponsiveContainer from './ui/ResponsiveContainer'
+import ResponsiveGrid from './ui/ResponsiveGrid'
+import {
+  getResponsiveFontSize,
+  getResponsivePadding,
+  responsive,
+  isDesktop,
+  isWeb
+} from '../utils/responsive'
 
 const supabase = createClient(
   process.env.EXPO_PUBLIC_SUPABASE_URL!,
@@ -221,62 +230,66 @@ export default function CompleteBookingFlow({ navigation, user, userProfile }: P
     if (loading) {
       return (
         <SafeAreaView style={styles.container}>
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#2081C3" />
-            <Text style={styles.loadingText}>Loading services...</Text>
-          </View>
+          <ResponsiveContainer>
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#2081C3" />
+              <Text style={styles.loadingText}>Loading services...</Text>
+            </View>
+          </ResponsiveContainer>
         </SafeAreaView>
       )
     }
 
     return (
       <SafeAreaView style={styles.container}>
-        <ScrollView style={styles.content}>
-          <View style={styles.header}>
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => navigation.navigate('Home')}
-            >
-              <Text style={styles.backButtonText}>← Back to Home</Text>
-            </TouchableOpacity>
-            <Text style={styles.title}>Sweet Dreams Music Studio</Text>
-            <Text style={styles.subtitle}>Choose your service</Text>
-          </View>
-
-          <View style={styles.servicesList}>
-            {services.map((service) => (
-              <TouchableOpacity
-                key={service.id}
-                style={styles.serviceCard}
-                onPress={() => handleServiceSelect(service)}
+        <ScrollView style={[styles.content, isWeb && styles.webContent]}>
+          <ResponsiveContainer>
+            <View style={styles.header}>
+              <TouchableOpacity 
+                style={styles.backButton}
+                onPress={() => navigation.navigate('Home')}
               >
-                <View style={styles.serviceHeader}>
-                  <Text style={styles.serviceName}>{service.name}</Text>
-                  <Text style={styles.servicePrice}>{formatPrice(service.price_cents)}</Text>
-                </View>
-                
-                <Text style={styles.serviceDuration}>
-                  {formatDuration(service.duration_minutes)}
-                </Text>
-                
-                {service.description && (
-                  <Text style={styles.serviceDescription}>{service.description}</Text>
-                )}
-                
-                <View style={styles.serviceCategory}>
-                  <Text style={styles.categoryText}>{service.category.toUpperCase()}</Text>
-                </View>
-
-                {service.requires_deposit && (
-                  <View style={styles.depositBadge}>
-                    <Text style={styles.depositText}>
-                      {service.deposit_percentage}% deposit required
-                    </Text>
-                  </View>
-                )}
+                <Text style={styles.backButtonText}>← Back to Home</Text>
               </TouchableOpacity>
-            ))}
-          </View>
+              <Text style={styles.title}>Sweet Dreams Music Studio</Text>
+              <Text style={styles.subtitle}>Choose your service</Text>
+            </View>
+
+            <ResponsiveGrid spacing={responsive({ mobile: 16, desktop: 24 })}>
+              {services.map((service) => (
+                <TouchableOpacity
+                  key={service.id}
+                  style={styles.serviceCard}
+                  onPress={() => handleServiceSelect(service)}
+                >
+                  <View style={styles.serviceHeader}>
+                    <Text style={styles.serviceName}>{service.name}</Text>
+                    <Text style={styles.servicePrice}>{formatPrice(service.price_cents)}</Text>
+                  </View>
+                  
+                  <Text style={styles.serviceDuration}>
+                    {formatDuration(service.duration_minutes)}
+                  </Text>
+                  
+                  {service.description && (
+                    <Text style={styles.serviceDescription}>{service.description}</Text>
+                  )}
+                  
+                  <View style={styles.serviceCategory}>
+                    <Text style={styles.categoryText}>{service.category.toUpperCase()}</Text>
+                  </View>
+
+                  {service.requires_deposit && (
+                    <View style={styles.depositBadge}>
+                      <Text style={styles.depositText}>
+                        {service.deposit_percentage}% deposit required
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ResponsiveGrid>
+          </ResponsiveContainer>
         </ScrollView>
       </SafeAreaView>
     )
@@ -286,8 +299,9 @@ export default function CompleteBookingFlow({ navigation, user, userProfile }: P
   if (currentStep === 'datetime') {
     return (
       <SafeAreaView style={styles.container}>
-        <ScrollView style={styles.content}>
-          <View style={styles.header}>
+        <ScrollView style={[styles.content, isWeb && styles.webContent]}>
+          <ResponsiveContainer>
+            <View style={styles.header}>
             <TouchableOpacity 
               style={styles.backButton}
               onPress={() => setCurrentStep('services')}
@@ -362,6 +376,7 @@ export default function CompleteBookingFlow({ navigation, user, userProfile }: P
               </TouchableOpacity>
             )}
           </View>
+          </ResponsiveContainer>
         </ScrollView>
       </SafeAreaView>
     )
@@ -371,8 +386,9 @@ export default function CompleteBookingFlow({ navigation, user, userProfile }: P
   if (currentStep === 'details') {
     return (
       <SafeAreaView style={styles.container}>
-        <ScrollView style={styles.content}>
-          <View style={styles.header}>
+        <ScrollView style={[styles.content, isWeb && styles.webContent]}>
+          <ResponsiveContainer>
+            <View style={styles.header}>
             <TouchableOpacity 
               style={styles.backButton}
               onPress={() => setCurrentStep('datetime')}
@@ -483,6 +499,7 @@ export default function CompleteBookingFlow({ navigation, user, userProfile }: P
               )}
             </TouchableOpacity>
           </View>
+          </ResponsiveContainer>
         </ScrollView>
       </SafeAreaView>
     )
@@ -492,7 +509,8 @@ export default function CompleteBookingFlow({ navigation, user, userProfile }: P
   if (currentStep === 'confirmation') {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.confirmationContainer}>
+        <ResponsiveContainer>
+          <View style={styles.confirmationContainer}>
           <Text style={styles.confirmationTitle}>🎉 Booking Created!</Text>
           <Text style={styles.confirmationText}>
             Your booking request has been submitted. In the full version, you would proceed to payment.
@@ -504,6 +522,7 @@ export default function CompleteBookingFlow({ navigation, user, userProfile }: P
             <Text style={styles.continueButtonText}>Back to Home</Text>
           </TouchableOpacity>
         </View>
+        </ResponsiveContainer>
       </SafeAreaView>
     )
   }
@@ -519,6 +538,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  webContent: {
+    minHeight: isWeb ? '100vh' : 'auto',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -526,15 +548,18 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: '#666',
   },
   header: {
     backgroundColor: 'white',
-    paddingHorizontal: 20,
-    paddingVertical: 24,
+    paddingHorizontal: getResponsivePadding(),
+    paddingVertical: responsive({ mobile: 24, desktop: 32 }),
     borderBottomWidth: 1,
     borderBottomColor: '#e5e5e5',
+    alignItems: isDesktop() ? 'center' : 'stretch',
+    maxWidth: isDesktop() ? 800 : '100%',
+    alignSelf: isDesktop() ? 'center' : 'stretch',
   },
   backButton: {
     marginBottom: 16,
@@ -545,14 +570,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   title: {
-    fontSize: 24,
+    fontSize: getResponsiveFontSize(24),
     fontWeight: 'bold',
     color: '#1a1a1a',
     marginBottom: 4,
+    textAlign: isDesktop() ? 'center' : 'left',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: '#666',
+    textAlign: isDesktop() ? 'center' : 'left',
   },
   servicesList: {
     padding: 20,
@@ -560,13 +587,14 @@ const styles = StyleSheet.create({
   },
   serviceCard: {
     backgroundColor: 'white',
-    padding: 20,
+    padding: getResponsivePadding(),
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    minHeight: isDesktop() ? 250 : 'auto',
   },
   serviceHeader: {
     flexDirection: 'row',
@@ -575,26 +603,26 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   serviceName: {
-    fontSize: 18,
+    fontSize: getResponsiveFontSize(18),
     fontWeight: 'bold',
     color: '#1a1a1a',
     flex: 1,
   },
   servicePrice: {
-    fontSize: 20,
+    fontSize: getResponsiveFontSize(20),
     fontWeight: 'bold',
     color: '#10b981',
   },
   serviceDuration: {
-    fontSize: 14,
+    fontSize: getResponsiveFontSize(14),
     color: '#2081C3',
     fontWeight: '500',
     marginBottom: 8,
   },
   serviceDescription: {
-    fontSize: 14,
+    fontSize: getResponsiveFontSize(14),
     color: '#666',
-    lineHeight: 20,
+    lineHeight: responsive({ mobile: 20, desktop: 24 }),
     marginBottom: 12,
   },
   serviceCategory: {
@@ -606,7 +634,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   categoryText: {
-    fontSize: 10,
+    fontSize: getResponsiveFontSize(10),
     fontWeight: '600',
     color: '#666',
   },

@@ -1,0 +1,61 @@
+/* Web-specific styles for Dream Suite */
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Ensure proper scrolling on web */
+body {
+  overflow-x: hidden;
+  overflow-y: auto;
+  background-color: #f8f9fa;
+}
+
+/* Responsive viewport settings */
+@media (max-width: 767px) {
+  /* Mobile styles */
+  body {
+    font-size: 16px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Tablet styles */
+  body {
+    font-size: 17px;
+  }
+}
+
+@media (min-width: 1024px) {
+  /* Desktop styles */
+  body {
+    font-size: 18px;
+  }
+}
+
+/* Ensure proper focus styles for web accessibility */
+*:focus {
+  outline: 2px solid #2081C3;
+  outline-offset: 2px;
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}

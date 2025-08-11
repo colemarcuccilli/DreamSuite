@@ -7,6 +7,15 @@ import {
   SafeAreaView,
   ScrollView
 } from 'react-native'
+import ResponsiveContainer from '../components/ui/ResponsiveContainer'
+import ResponsiveGrid from '../components/ui/ResponsiveGrid'
+import {
+  getResponsiveFontSize,
+  getResponsivePadding,
+  responsive,
+  isDesktop,
+  isWeb
+} from '../utils/responsive'
 
 interface Props {
   navigation: any
@@ -44,9 +53,13 @@ export default function HomeScreen({ navigation, user, userProfile, onSignOut }:
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView 
+        contentContainerStyle={[styles.content, isWeb && styles.webContent]}
+        showsVerticalScrollBar={isDesktop()}
+      >
+        <ResponsiveContainer>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, isDesktop() && styles.desktopHeader]}>
           <Text style={styles.title}>Dream Suite</Text>
           <Text style={styles.subtitle}>Music Studio Booking Platform</Text>
           
@@ -66,7 +79,7 @@ export default function HomeScreen({ navigation, user, userProfile, onSignOut }:
         </View>
 
         {/* Quick Actions */}
-        <View style={styles.actionsContainer}>
+        <ResponsiveGrid spacing={responsive({ mobile: 16, desktop: 24 })}>
           
           {/* Booking Access */}
           <View style={styles.section}>
@@ -130,7 +143,7 @@ export default function HomeScreen({ navigation, user, userProfile, onSignOut }:
             </Text>
           </View>
 
-        </View>
+        </ResponsiveGrid>
 
         {/* Footer */}
         <View style={styles.footer}>
@@ -138,6 +151,7 @@ export default function HomeScreen({ navigation, user, userProfile, onSignOut }:
             Professional music studio booking and management platform
           </Text>
         </View>
+        </ResponsiveContainer>
       </ScrollView>
     </SafeAreaView>
   )
@@ -150,74 +164,81 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    padding: 20,
+    minHeight: isWeb ? '100vh' : 'auto',
+  },
+  webContent: {
+    justifyContent: isDesktop() ? 'flex-start' : 'center',
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
-    paddingTop: 20,
+    marginBottom: responsive({ mobile: 40, desktop: 60 }),
+    paddingTop: responsive({ mobile: 20, desktop: 40 }),
+  },
+  desktopHeader: {
+    maxWidth: 800,
+    alignSelf: 'center',
   },
   title: {
-    fontSize: 32,
+    fontSize: getResponsiveFontSize(32),
     fontWeight: 'bold',
     color: '#2081C3',
     marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: '#666',
     textAlign: 'center',
   },
-  actionsContainer: {
-    flex: 1,
-    gap: 30,
-  },
+  // Removed actionsContainer - now using ResponsiveGrid
   section: {
     backgroundColor: 'white',
-    padding: 20,
+    padding: getResponsivePadding(),
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    minHeight: isDesktop() ? 300 : 'auto',
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: getResponsiveFontSize(20),
     fontWeight: 'bold',
     color: '#1a1a1a',
     marginBottom: 16,
+    textAlign: isDesktop() ? 'left' : 'center',
   },
   primaryButton: {
     backgroundColor: '#2081C3',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    paddingVertical: responsive({ mobile: 16, desktop: 18 }),
+    paddingHorizontal: responsive({ mobile: 24, desktop: 32 }),
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 12,
   },
   primaryButtonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: getResponsiveFontSize(18),
     fontWeight: 'bold',
   },
   secondaryButton: {
     backgroundColor: '#10b981',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
+    paddingVertical: responsive({ mobile: 14, desktop: 16 }),
+    paddingHorizontal: responsive({ mobile: 24, desktop: 32 }),
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 12,
   },
   secondaryButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     fontWeight: '600',
   },
   tertiaryButton: {
     backgroundColor: '#f3f4f6',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
+    paddingVertical: responsive({ mobile: 14, desktop: 16 }),
+    paddingHorizontal: responsive({ mobile: 24, desktop: 32 }),
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
@@ -225,14 +246,14 @@ const styles = StyleSheet.create({
   },
   tertiaryButtonText: {
     color: '#2081C3',
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     fontWeight: '600',
   },
   helpText: {
-    fontSize: 14,
+    fontSize: getResponsiveFontSize(14),
     color: '#666',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: responsive({ mobile: 20, desktop: 24 }),
   },
   footer: {
     marginTop: 40,
@@ -242,7 +263,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerText: {
-    fontSize: 14,
+    fontSize: getResponsiveFontSize(14),
     color: '#666',
     textAlign: 'center',
   },

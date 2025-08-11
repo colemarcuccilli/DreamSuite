@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "description": "AI-powered mobile-first artist development platform",
+    "description": "AI-powered artist development platform for mobile and web",
     "scheme": "dreamsuite",
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -44,7 +44,18 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "name": "Dream Suite - Music Studio Management",
+      "shortName": "Dream Suite",
+      "description": "Professional music studio booking and management platform for artists and studios",
+      "themeColor": "#2081C3",
+      "backgroundColor": "#f8f9fa",
+      "display": "standalone",
+      "orientation": "any",
+      "scope": "/",
+      "startUrl": "/",
+      "preferRelatedApplications": false,
+      "crossOrigin": "use-credentials"
     },
     "plugins": [
       "expo-secure-store",

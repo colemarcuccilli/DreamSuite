@@ -11,6 +11,15 @@ import {
   RefreshControl,
 } from 'react-native'
 import { createClient } from '@supabase/supabase-js'
+import ResponsiveContainer from './ui/ResponsiveContainer'
+import ResponsiveGrid from './ui/ResponsiveGrid'
+import {
+  getResponsiveFontSize,
+  getResponsivePadding,
+  responsive,
+  isDesktop,
+  isWeb
+} from '../utils/responsive'
 
 const supabase = createClient(
   process.env.EXPO_PUBLIC_SUPABASE_URL!,
@@ -238,15 +247,17 @@ export default function AdminDashboard({ navigation, user, userProfile, onSignOu
   if (!userProfile?.is_super_admin) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.unauthorizedContainer}>
-          <Text style={styles.unauthorizedTitle}>Access Denied</Text>
-          <Text style={styles.unauthorizedText}>
-            You don't have admin privileges. Only super administrators can access this dashboard.
-          </Text>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Home')}>
-            <Text style={styles.backButtonText}>← Back to Home</Text>
-          </TouchableOpacity>
-        </View>
+        <ResponsiveContainer>
+          <View style={styles.unauthorizedContainer}>
+            <Text style={styles.unauthorizedTitle}>Access Denied</Text>
+            <Text style={styles.unauthorizedText}>
+              You don't have admin privileges. Only super administrators can access this dashboard.
+            </Text>
+            <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Home')}>
+              <Text style={styles.backButtonText}>← Back to Home</Text>
+            </TouchableOpacity>
+          </View>
+        </ResponsiveContainer>
       </SafeAreaView>
     )
   }
@@ -254,18 +265,21 @@ export default function AdminDashboard({ navigation, user, userProfile, onSignOu
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2081C3" />
-          <Text style={styles.loadingText}>Loading admin dashboard...</Text>
-        </View>
+        <ResponsiveContainer>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#2081C3" />
+            <Text style={styles.loadingText}>Loading admin dashboard...</Text>
+          </View>
+        </ResponsiveContainer>
       </SafeAreaView>
     )
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
+      <ResponsiveContainer>
+        {/* Header */}
+        <View style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity 
             style={styles.backButton}
@@ -442,6 +456,7 @@ export default function AdminDashboard({ navigation, user, userProfile, onSignOu
           </View>
         )}
       </ScrollView>
+      </ResponsiveContainer>
     </SafeAreaView>
   )
 }
@@ -458,32 +473,32 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: '#666',
   },
   unauthorizedContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    padding: getResponsivePadding(),
   },
   unauthorizedTitle: {
-    fontSize: 24,
+    fontSize: getResponsiveFontSize(24),
     fontWeight: 'bold',
     color: '#ef4444',
     marginBottom: 16,
   },
   unauthorizedText: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: '#666',
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: responsive({ mobile: 24, desktop: 28 }),
     marginBottom: 32,
   },
   header: {
     backgroundColor: 'white',
-    paddingHorizontal: 20,
-    paddingVertical: 24,
+    paddingHorizontal: getResponsivePadding(),
+    paddingVertical: responsive({ mobile: 24, desktop: 32 }),
     borderBottomWidth: 1,
     borderBottomColor: '#e5e5e5',
   },

@@ -11,6 +11,15 @@ import {
   Alert,
 } from 'react-native'
 import { createClient } from '@supabase/supabase-js'
+import ResponsiveContainer from './ui/ResponsiveContainer'
+import {
+  getResponsiveFontSize,
+  getResponsivePadding,
+  responsive,
+  isDesktop,
+  isWeb,
+  getComponentMaxWidth
+} from '../utils/responsive'
 
 const supabase = createClient(
   process.env.EXPO_PUBLIC_SUPABASE_URL!,
@@ -124,7 +133,11 @@ export default function AuthScreen({ navigation, onAuthSuccess }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView 
+        contentContainerStyle={[styles.content, isWeb && styles.webContent]}
+        showsVerticalScrollBar={isDesktop()}
+      >
+        <ResponsiveContainer centerContent={true} maxWidth={getComponentMaxWidth()}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>
@@ -237,6 +250,7 @@ export default function AuthScreen({ navigation, onAuthSuccess }: Props) {
         >
           <Text style={styles.backButtonText}>← Back to Home</Text>
         </TouchableOpacity>
+        </ResponsiveContainer>
       </ScrollView>
     </SafeAreaView>
   )
@@ -249,29 +263,33 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    padding: 20,
+    minHeight: isWeb ? '100vh' : 'auto',
+    justifyContent: isDesktop() ? 'center' : 'flex-start',
+  },
+  webContent: {
+    paddingVertical: responsive({ mobile: 20, desktop: 40 }),
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
-    paddingTop: 20,
+    marginBottom: responsive({ mobile: 40, desktop: 50 }),
+    paddingTop: responsive({ mobile: 20, desktop: 0 }),
   },
   title: {
-    fontSize: 28,
+    fontSize: getResponsiveFontSize(28),
     fontWeight: 'bold',
     color: '#2081C3',
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: '#666',
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: responsive({ mobile: 24, desktop: 28 }),
   },
   form: {
     backgroundColor: 'white',
-    padding: 24,
+    padding: getResponsivePadding(),
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -279,12 +297,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
     marginBottom: 20,
+    maxWidth: '100%',
   },
   inputGroup: {
     marginBottom: 20,
   },
   label: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     fontWeight: '600',
     color: '#1a1a1a',
     marginBottom: 8,
@@ -293,14 +312,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e5e5',
     borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
+    paddingHorizontal: responsive({ mobile: 16, desktop: 20 }),
+    paddingVertical: responsive({ mobile: 12, desktop: 16 }),
+    fontSize: getResponsiveFontSize(16),
     backgroundColor: '#fafafa',
   },
   authButton: {
     backgroundColor: '#2081C3',
-    paddingVertical: 16,
+    paddingVertical: responsive({ mobile: 16, desktop: 18 }),
+    paddingHorizontal: responsive({ mobile: 24, desktop: 32 }),
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 16,
@@ -310,7 +330,7 @@ const styles = StyleSheet.create({
   },
   authButtonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: getResponsiveFontSize(18),
     fontWeight: 'bold',
   },
   forgotButton: {
