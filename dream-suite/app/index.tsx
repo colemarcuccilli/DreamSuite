@@ -7,12 +7,8 @@ import {
   SafeAreaView,
   ScrollView
 } from 'react-native'
-import { useRouter } from 'expo-router'
-import { useAuth } from '../hooks/useAuth'
 
-export default function HomeScreen() {
-  const { user } = useAuth()
-  const router = useRouter()
+export default function HomeScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
@@ -31,7 +27,7 @@ export default function HomeScreen() {
             <Text style={styles.sectionTitle}>Book a Studio Session</Text>
             <TouchableOpacity
               style={styles.primaryButton}
-              onPress={() => router.push('/booking/a1b2c3d4-e5f6-7890-abcd-ef1234567890')}
+              onPress={() => navigation.navigate('Booking')}
             >
               <Text style={styles.primaryButtonText}>📅 Book Sweet Dreams Studio</Text>
             </TouchableOpacity>
@@ -43,29 +39,18 @@ export default function HomeScreen() {
           {/* Admin Access */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Studio Management</Text>
-            {user ? (
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={() => router.push('/admin')}
-              >
-                <Text style={styles.secondaryButtonText}>🏢 Go to Admin Dashboard</Text>
-              </TouchableOpacity>
-            ) : (
-              <>
-                <TouchableOpacity
-                  style={styles.secondaryButton}
-                  onPress={() => router.push('/auth/login')}
-                >
-                  <Text style={styles.secondaryButtonText}>🔐 Studio Owner Login</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.tertiaryButton}
-                  onPress={() => router.push('/auth/signup')}
-                >
-                  <Text style={styles.tertiaryButtonText}>📝 Register Your Studio</Text>
-                </TouchableOpacity>
-              </>
-            )}
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => alert('Admin features coming soon!')}
+            >
+              <Text style={styles.secondaryButtonText}>🔐 Studio Owner Login</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.tertiaryButton}
+              onPress={() => alert('Registration coming soon!')}
+            >
+              <Text style={styles.tertiaryButtonText}>📝 Register Your Studio</Text>
+            </TouchableOpacity>
           </View>
 
         </View>

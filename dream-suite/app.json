@@ -55,11 +55,7 @@
           "icon": "./assets/notification-icon.png",
           "color": "#2081C3"
         }
-      ],
-      "expo-router"
-    ],
-    "experiments": {
-      "typedRoutes": true
-    }
+      ]
+    ]
   }
 }
