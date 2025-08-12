@@ -10,6 +10,7 @@ import HomeScreen from './app/index'
 import CompleteBookingFlow from './components/CompleteBookingFlow'
 import AuthScreen from './components/AuthScreen'
 import AdminDashboard from './components/AdminDashboard'
+import ResetPasswordScreen from './app/auth/reset-password'
 
 const Stack = createNativeStackNavigator()
 
@@ -137,6 +138,10 @@ export default function App() {
                 onSignOut={handleSignOut}
               />
             )}
+          </Stack.Screen>
+
+          <Stack.Screen name="ResetPassword">
+            {(props) => <ResetPasswordScreen {...props} />}
           </Stack.Screen>
         </Stack.Navigator>
       </NavigationContainer>

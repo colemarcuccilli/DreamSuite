@@ -32,11 +32,96 @@ export default function AuthScreen({ navigation, onAuthSuccess }: Props) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [resetEmailSent, setResetEmailSent] = useState(false)
+  const [emailVerificationSent, setEmailVerificationSent] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [passwordVisible, setPasswordVisible] = useState(false)
+  const [formErrors, setFormErrors] = useState<{[key: string]: string}>({})
+  const [sessionExpired, setSessionExpired] = useState(false)
 
-  // Check if user is already logged in
+  // Check if user is already logged in and handle URL tokens
   useEffect(() => {
     checkUser()
+    handleUrlTokens()
+    checkSessionExpiry()
   }, [])
+
+  const handleUrlTokens = () => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash
+      
+      // Check for email confirmation
+      if (hash.includes('type=signup') || hash.includes('type=email_change')) {
+        setSuccess('Email confirmed successfully! You can now sign in.')
+        setEmailVerificationSent(false)
+      }
+      
+      // Check for password recovery
+      if (hash.includes('type=recovery')) {
+        setSuccess('Password reset link confirmed! Please enter your new password.')
+        setShowForgotPassword(false)
+        setIsLogin(true)
+      }
+      
+      // Check for expired token
+      if (hash.includes('error=access_denied') || hash.includes('error=token_expired')) {
+        setError('Authentication link has expired. Please try again.')
+        setSessionExpired(true)
+      }
+    }
+  }
+
+  const checkSessionExpiry = () => {
+    // Check if user session is expired
+    supabase.auth.onAuthStateChange((event) => {
+      if (event === 'TOKEN_REFRESHED') {
+        setSessionExpired(false)
+      } else if (event === 'SIGNED_OUT') {
+        setSessionExpired(true)
+        setError('Your session has expired. Please sign in again.')
+      }
+    })
+  }
+
+  const validateForm = () => {
+    const errors: {[key: string]: string} = {}
+    
+    if (!email) {
+      errors.email = 'Email is required'
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      errors.email = 'Please enter a valid email address'
+    }
+    
+    if (!password && !showForgotPassword) {
+      errors.password = 'Password is required'
+    } else if (password.length < 6 && !showForgotPassword) {
+      errors.password = 'Password must be at least 6 characters'
+    }
+    
+    if (!isLogin && !showForgotPassword) {
+      if (!fullName.trim()) {
+        errors.fullName = 'Full name is required'
+      }
+      
+      if (!confirmPassword) {
+        errors.confirmPassword = 'Please confirm your password'
+      } else if (password !== confirmPassword) {
+        errors.confirmPassword = 'Passwords do not match'
+      }
+    }
+    
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const clearMessages = () => {
+    setError('')
+    setSuccess('')
+    setFormErrors({})
+  }
 
   const checkUser = async () => {
     try {
@@ -49,14 +134,39 @@ export default function AuthScreen({ navigation, onAuthSuccess }: Props) {
     }
   }
 
-  const handleAuth = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all required fields')
+  const handleForgotPassword = async () => {
+    clearMessages()
+    
+    if (!email) {
+      setError('Please enter your email address to reset your password')
       return
     }
 
-    if (!isLogin && !fullName) {
-      Alert.alert('Error', 'Please enter your full name')
+    if (!validateForm()) return
+
+    setLoading(true)
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase(), {
+        redirectTo: `${window.location.origin}/auth/reset-password`
+      })
+
+      if (error) throw error
+
+      setResetEmailSent(true)
+      setSuccess(`Password reset instructions have been sent to ${email}. Please check your inbox and spam folder.`)
+      setShowForgotPassword(false)
+    } catch (error: any) {
+      setError(error.message || 'Failed to send password reset email. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAuth = async () => {
+    clearMessages()
+    
+    if (!validateForm()) {
       return
     }
 
@@ -70,10 +180,20 @@ export default function AuthScreen({ navigation, onAuthSuccess }: Props) {
           password
         })
 
-        if (error) throw error
+        if (error) {
+          if (error.message.includes('Invalid login credentials')) {
+            setError('Invalid email or password. Please check your credentials and try again.')
+          } else if (error.message.includes('Email not confirmed')) {
+            setError('Please confirm your email address before signing in. Check your inbox for a confirmation link.')
+            setEmailVerificationSent(true)
+          } else {
+            setError(error.message)
+          }
+          return
+        }
 
         if (data.user) {
-          Alert.alert('Success', 'Welcome back!')
+          setSuccess('Welcome back!')
           onAuthSuccess(data.user)
         }
       } else {
@@ -88,42 +208,125 @@ export default function AuthScreen({ navigation, onAuthSuccess }: Props) {
           }
         })
 
-        if (error) throw error
+        if (error) {
+          if (error.message.includes('User already registered')) {
+            setError('An account with this email already exists. Please sign in instead.')
+            setIsLogin(true)
+          } else {
+            setError(error.message)
+          }
+          return
+        }
 
         if (data.user) {
           if (data.user.email_confirmed_at) {
-            Alert.alert('Success', 'Account created successfully!')
+            setSuccess('Account created successfully!')
             onAuthSuccess(data.user)
           } else {
-            Alert.alert(
-              'Check your email', 
-              'Please check your email and click the confirmation link to complete your registration.'
-            )
+            setEmailVerificationSent(true)
+            setSuccess(`Account created! Please check your email (${email}) and click the confirmation link to complete your registration.`)
           }
         }
       }
     } catch (error: any) {
       console.error('Auth error:', error)
-      Alert.alert('Error', error.message || 'Authentication failed')
+      setError(error.message || 'Authentication failed. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleForgotPassword = async () => {
+  const resendVerificationEmail = async () => {
     if (!email) {
-      Alert.alert('Error', 'Please enter your email address')
+      setError('Please enter your email address')
       return
     }
 
+    setLoading(true)
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase())
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email.toLowerCase()
+      })
+      
       if (error) throw error
       
-      Alert.alert('Success', 'Password reset email sent! Check your inbox.')
+      setSuccess('Verification email resent! Please check your inbox.')
     } catch (error: any) {
-      Alert.alert('Error', error.message)
+      setError(error.message || 'Failed to resend verification email')
+    } finally {
+      setLoading(false)
     }
+  }
+
+  // Show forgot password screen
+  if (showForgotPassword) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScrollView contentContainerStyle={[styles.content, isWeb && styles.webContent]}>
+          <ResponsiveContainer centerContent={true} maxWidth={getComponentMaxWidth()}>
+            <View style={styles.header}>
+              <Text style={styles.title}>Reset Password</Text>
+              <Text style={styles.subtitle}>
+                Enter your email address and we'll send you a link to reset your password.
+              </Text>
+            </View>
+
+            {error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {success ? (
+              <View style={styles.successContainer}>
+                <Text style={styles.successText}>{success}</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.form}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Email Address *</Text>
+                <TextInput
+                  style={[styles.input, formErrors.email && styles.inputError]}
+                  value={email}
+                  onChangeText={(text) => {
+                    setEmail(text)
+                    clearMessages()
+                  }}
+                  placeholder="Enter your email"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {formErrors.email ? (
+                  <Text style={styles.fieldError}>{formErrors.email}</Text>
+                ) : null}
+              </View>
+
+              <TouchableOpacity
+                style={[styles.authButton, loading && styles.authButtonDisabled]}
+                onPress={handleForgotPassword}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.authButtonText}>Send Reset Link</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.toggleButton}
+                onPress={() => setShowForgotPassword(false)}
+              >
+                <Text style={styles.toggleButtonText}>← Back to Sign In</Text>
+              </TouchableOpacity>
+            </View>
+          </ResponsiveContainer>
+        </ScrollView>
+      </SafeAreaView>
+    )
   }
 
   return (
@@ -133,118 +336,214 @@ export default function AuthScreen({ navigation, onAuthSuccess }: Props) {
         showsVerticalScrollBar={isDesktop()}
       >
         <ResponsiveContainer centerContent={true} maxWidth={getComponentMaxWidth()}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>
-            {isLogin ? 'Studio Owner Login' : 'Register Your Studio'}
-          </Text>
-          <Text style={styles.subtitle}>
-            {isLogin 
-              ? 'Welcome back! Sign in to manage your studio.' 
-              : 'Join the Dream Suite platform and start taking bookings.'
-            }
-          </Text>
-        </View>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>
+              {isLogin ? 'Sign In to Dream Suite' : 'Join Dream Suite'}
+            </Text>
+            <Text style={styles.subtitle}>
+              {isLogin 
+                ? 'Welcome back! Sign in to access your account.' 
+                : 'Create an account to start booking studio sessions.'
+              }
+            </Text>
+          </View>
 
-        {/* Form */}
-        <View style={styles.form}>
-          {!isLogin && (
+          {/* Session Expired Warning */}
+          {sessionExpired && (
+            <View style={styles.warningContainer}>
+              <Text style={styles.warningText}>
+                ⚠️ Your session has expired. Please sign in again.
+              </Text>
+            </View>
+          )}
+
+          {/* Error Messages */}
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          {/* Success Messages */}
+          {success ? (
+            <View style={styles.successContainer}>
+              <Text style={styles.successText}>{success}</Text>
+            </View>
+          ) : null}
+
+          {/* Email Verification Reminder */}
+          {emailVerificationSent && (
+            <View style={styles.infoContainer}>
+              <Text style={styles.infoText}>
+                📧 Check your email for a verification link.
+              </Text>
+              <TouchableOpacity style={styles.linkButton} onPress={resendVerificationEmail}>
+                <Text style={styles.linkButtonText}>Resend verification email</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Password Reset Confirmation */}
+          {resetEmailSent && (
+            <View style={styles.successContainer}>
+              <Text style={styles.successText}>
+                ✅ Password reset email sent! Check your inbox and spam folder.
+              </Text>
+            </View>
+          )}
+
+          {/* Form */}
+          <View style={styles.form}>
+            {!isLogin && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Full Name *</Text>
+                <TextInput
+                  style={[styles.input, formErrors.fullName && styles.inputError]}
+                  value={fullName}
+                  onChangeText={(text) => {
+                    setFullName(text)
+                    clearMessages()
+                  }}
+                  placeholder="Enter your full name"
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                />
+                {formErrors.fullName ? (
+                  <Text style={styles.fieldError}>{formErrors.fullName}</Text>
+                ) : null}
+              </View>
+            )}
+
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Full Name *</Text>
+              <Text style={styles.label}>Email Address *</Text>
               <TextInput
-                style={styles.input}
-                value={fullName}
-                onChangeText={setFullName}
-                placeholder="Enter your full name"
-                autoCapitalize="words"
+                style={[styles.input, formErrors.email && styles.inputError]}
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text)
+                  clearMessages()
+                }}
+                placeholder="Enter your email"
+                keyboardType="email-address"
+                autoCapitalize="none"
                 autoCorrect={false}
               />
+              {formErrors.email ? (
+                <Text style={styles.fieldError}>{formErrors.email}</Text>
+              ) : null}
             </View>
-          )}
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email Address *</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Enter your email"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Password *</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={[styles.input, styles.passwordInput, formErrors.password && styles.inputError]}
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text)
+                    clearMessages()
+                  }}
+                  placeholder={isLogin ? "Enter your password" : "Create a password (min 6 characters)"}
+                  secureTextEntry={!passwordVisible}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity
+                  style={styles.passwordToggle}
+                  onPress={() => setPasswordVisible(!passwordVisible)}
+                >
+                  <Text style={styles.passwordToggleText}>
+                    {passwordVisible ? '🙈' : '👁️'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {formErrors.password ? (
+                <Text style={styles.fieldError}>{formErrors.password}</Text>
+              ) : null}
+            </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password *</Text>
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              placeholder={isLogin ? "Enter your password" : "Create a password (min 6 characters)"}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-
-          {/* Auth Button */}
-          <TouchableOpacity
-            style={[styles.authButton, loading && styles.authButtonDisabled]}
-            onPress={handleAuth}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.authButtonText}>
-                {isLogin ? 'Sign In' : 'Create Account'}
-              </Text>
+            {!isLogin && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Confirm Password *</Text>
+                <TextInput
+                  style={[styles.input, formErrors.confirmPassword && styles.inputError]}
+                  value={confirmPassword}
+                  onChangeText={(text) => {
+                    setConfirmPassword(text)
+                    clearMessages()
+                  }}
+                  placeholder="Confirm your password"
+                  secureTextEntry={!passwordVisible}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {formErrors.confirmPassword ? (
+                  <Text style={styles.fieldError}>{formErrors.confirmPassword}</Text>
+                ) : null}
+              </View>
             )}
-          </TouchableOpacity>
 
-          {/* Forgot Password */}
-          {isLogin && (
+            {/* Auth Button */}
             <TouchableOpacity
-              style={styles.forgotButton}
-              onPress={handleForgotPassword}
+              style={[styles.authButton, loading && styles.authButtonDisabled]}
+              onPress={handleAuth}
+              disabled={loading}
             >
-              <Text style={styles.forgotButtonText}>Forgot Password?</Text>
+              {loading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text style={styles.authButtonText}>
+                  {isLogin ? 'Sign In' : 'Create Account'}
+                </Text>
+              )}
             </TouchableOpacity>
-          )}
 
-          {/* Toggle Form */}
-          <View style={styles.toggleContainer}>
-            <Text style={styles.toggleText}>
-              {isLogin ? "Don't have an account?" : "Already have an account?"}
-            </Text>
-            <TouchableOpacity
-              style={styles.toggleButton}
-              onPress={() => setIsLogin(!isLogin)}
-            >
-              <Text style={styles.toggleButtonText}>
-                {isLogin ? 'Sign Up' : 'Sign In'}
+            {/* Forgot Password */}
+            {isLogin && (
+              <TouchableOpacity
+                style={styles.forgotButton}
+                onPress={() => setShowForgotPassword(true)}
+              >
+                <Text style={styles.forgotButtonText}>Forgot Password?</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Toggle Form */}
+            <View style={styles.toggleContainer}>
+              <Text style={styles.toggleText}>
+                {isLogin ? "Don't have an account?" : "Already have an account?"}
               </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.toggleButton}
+                onPress={() => {
+                  setIsLogin(!isLogin)
+                  clearMessages()
+                }}
+              >
+                <Text style={styles.toggleButtonText}>
+                  {isLogin ? 'Create Account' : 'Sign In'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Special Admin Note */}
+            {email.toLowerCase() === 'jayvalleo@sweetdreamsmusic.com' && (
+              <View style={styles.superAdminBadge}>
+                <Text style={styles.superAdminBadgeText}>
+                  🎵 Sweet Dreams Music Super Admin Account
+                </Text>
+              </View>
+            )}
           </View>
 
-          {/* Special Admin Note */}
-          {email.toLowerCase() === 'jayvalleo@sweetdreamsmusic.com' && (
-            <View style={styles.adminBadge}>
-              <Text style={styles.adminBadgeText}>
-                🎵 Sweet Dreams Music Super Admin
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Back to Home */}
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.navigate('Home')}
-        >
-          <Text style={styles.backButtonText}>← Back to Home</Text>
-        </TouchableOpacity>
+          {/* Back to Home */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.navigate('Home')}
+          >
+            <Text style={styles.backButtonText}>← Back to Home</Text>
+          </TouchableOpacity>
         </ResponsiveContainer>
       </ScrollView>
     </SafeAreaView>
@@ -351,42 +650,129 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   toggleButton: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
   toggleButtonText: {
     color: '#2081C3',
-    fontSize: 14,
+    fontSize: getResponsiveFontSize(14),
     fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
-  adminBadge: {
-    backgroundColor: '#fef3c7',
-    borderWidth: 1,
-    borderColor: '#f59e0b',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 16,
-    alignItems: 'center',
-  },
-  adminBadgeText: {
-    color: '#92400e',
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
   },
   backButton: {
-    backgroundColor: '#f3f4f6',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e5e5e5',
+    paddingVertical: 16,
   },
   backButtonText: {
     color: '#2081C3',
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     fontWeight: '600',
+  },
+  superAdminBadge: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  superAdminBadgeText: {
+    color: '#92400e',
+    fontSize: getResponsiveFontSize(12),
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  errorContainer: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 20,
+  },
+  errorText: {
+    color: '#dc2626',
+    fontSize: getResponsiveFontSize(14),
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  successContainer: {
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 20,
+  },
+  successText: {
+    color: '#15803d',
+    fontSize: getResponsiveFontSize(14),
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  warningContainer: {
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 20,
+  },
+  warningText: {
+    color: '#d97706',
+    fontSize: getResponsiveFontSize(14),
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  infoContainer: {
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  infoText: {
+    color: '#2563eb',
+    fontSize: getResponsiveFontSize(14),
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  linkButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  linkButtonText: {
+    color: '#2081C3',
+    fontSize: getResponsiveFontSize(14),
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  fieldError: {
+    color: '#dc2626',
+    fontSize: getResponsiveFontSize(12),
+    marginTop: 4,
+  },
+  inputError: {
+    borderColor: '#dc2626',
+    backgroundColor: '#fef2f2',
+  },
+  passwordContainer: {
+    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  passwordInput: {
+    flex: 1,
+    paddingRight: 50,
+  },
+  passwordToggle: {
+    position: 'absolute',
+    right: 12,
+    padding: 8,
+  },
+  passwordToggleText: {
+    fontSize: 18,
   },
 })
