@@ -58,14 +58,23 @@ const ExpoSecureStoreAdapter = {
   },
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: ExpoSecureStoreAdapter,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
-})
+// Create a singleton instance to prevent multiple clients
+let supabaseInstance: ReturnType<typeof createClient> | null = null
+
+export const supabase = (() => {
+  if (!supabaseInstance) {
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        storage: ExpoSecureStoreAdapter,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: Platform.OS === 'web',
+        flowType: 'pkce',
+      },
+    })
+  }
+  return supabaseInstance
+})()
 
 // Type definitions for database tables
 export interface Artist {

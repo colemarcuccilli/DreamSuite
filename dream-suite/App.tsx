@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { StatusBar } from 'expo-status-bar'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from './lib/supabase'
 import 'react-native-url-polyfill/auto'
 
 // Import screens
@@ -12,11 +12,6 @@ import AuthScreen from './components/AuthScreen'
 import AdminDashboard from './components/AdminDashboard'
 
 const Stack = createNativeStackNavigator()
-
-const supabase = createClient(
-  process.env.EXPO_PUBLIC_SUPABASE_URL!,
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 export default function App() {
   const [user, setUser] = useState<any>(null)

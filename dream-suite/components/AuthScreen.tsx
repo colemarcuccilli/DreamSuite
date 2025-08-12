@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import ResponsiveContainer from './ui/ResponsiveContainer'
 import {
   getResponsiveFontSize,
@@ -20,11 +20,6 @@ import {
   isWeb,
   getComponentMaxWidth
 } from '../utils/responsive'
-
-const supabase = createClient(
-  process.env.EXPO_PUBLIC_SUPABASE_URL!,
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 interface Props {
   navigation: any
