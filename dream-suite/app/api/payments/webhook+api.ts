@@ -45,7 +45,21 @@ export async function POST(request: ExpoRequest): Promise<Response> {
         break
 
       case 'payment_intent.succeeded':
-        console.log('Payment succeeded:', event.data.object.id)
+        await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent)
+        break
+
+      case 'payment_intent.payment_failed':
+        await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent)
+        break
+
+      case 'invoice.payment_succeeded':
+        console.log('Invoice payment succeeded:', event.data.object.id)
+        break
+
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted':
+        console.log(`Subscription event: ${event.type}`, event.data.object.id)
         break
 
       default:
@@ -56,7 +70,7 @@ export async function POST(request: ExpoRequest): Promise<Response> {
   } catch (error: any) {
     console.error('Error processing webhook:', error)
     return Response.json(
-      { error: 'Webhook processing failed' },
+      { error: 'Webhook processing failed', details: error.message },
       { status: 500 }
     )
   }
@@ -200,5 +214,71 @@ async function sendBookingEmails(bookingId: string, isDeposit: boolean) {
     
   } catch (error: any) {
     console.error('Error sending booking emails:', error)
+  }
+}
+
+async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
+  console.log('Payment Intent succeeded:', paymentIntent.id)
+  
+  // Find booking by payment intent ID
+  try {
+    const { data: booking, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('stripe_payment_intent_id', paymentIntent.id)
+      .single()
+
+    if (error || !booking) {
+      console.log('No booking found for payment intent:', paymentIntent.id)
+      return
+    }
+
+    // Update payment status
+    await supabase
+      .from('bookings')
+      .update({
+        payment_status: 'paid',
+        status: 'confirmed',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', booking.id)
+
+    console.log(`Booking ${booking.id} payment confirmed via payment intent`)
+  } catch (error) {
+    console.error('Error handling payment intent succeeded:', error)
+  }
+}
+
+async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
+  console.log('Payment Intent failed:', paymentIntent.id)
+  
+  // Find booking by payment intent ID
+  try {
+    const { data: booking, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('stripe_payment_intent_id', paymentIntent.id)
+      .single()
+
+    if (error || !booking) {
+      console.log('No booking found for failed payment intent:', paymentIntent.id)
+      return
+    }
+
+    // Update payment status to failed
+    await supabase
+      .from('bookings')
+      .update({
+        payment_status: 'failed',
+        status: 'cancelled',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', booking.id)
+
+    console.log(`Booking ${booking.id} payment failed - booking cancelled`)
+    
+    // TODO: Send payment failed notification email to client
+  } catch (error) {
+    console.error('Error handling payment intent failed:', error)
   }
 }

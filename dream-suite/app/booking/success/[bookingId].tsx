@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -13,19 +14,46 @@ import { bookingService } from '../../../lib/supabase-booking'
 import { Booking, Service, Studio } from '../../../types/booking'
 
 export default function BookingSuccessScreen() {
-  const { bookingId } = useLocalSearchParams<{ bookingId: string }>()
+  const { bookingId, session_id } = useLocalSearchParams<{ bookingId: string; session_id?: string }>()
   const router = useRouter()
   
   const [booking, setBooking] = useState<Booking | null>(null)
   const [service, setService] = useState<Service | null>(null)
   const [studio, setStudio] = useState<Studio | null>(null)
   const [loading, setLoading] = useState(true)
+  const [paymentVerified, setPaymentVerified] = useState(false)
 
   useEffect(() => {
     if (bookingId) {
       loadBookingDetails()
+      if (session_id) {
+        verifyPayment()
+      }
     }
-  }, [bookingId])
+  }, [bookingId, session_id])
+
+  const verifyPayment = async () => {
+    try {
+      // If we have a session_id, verify the payment was successful
+      const response = await fetch('/api/payments/verify-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: session_id,
+          bookingId: bookingId,
+        }),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        setPaymentVerified(result.success)
+      }
+    } catch (error) {
+      console.error('Error verifying payment:', error)
+    }
+  }
 
   const loadBookingDetails = async () => {
     try {
@@ -94,7 +122,11 @@ export default function BookingSuccessScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2081C3" />
           <Text style={styles.loadingText}>Loading booking details...</Text>
+          {session_id && (
+            <Text style={styles.verifyingText}>Verifying payment...</Text>
+          )}
         </View>
       </SafeAreaView>
     )
@@ -183,14 +215,42 @@ export default function BookingSuccessScreen() {
           )}
 
           <View style={[styles.detailRow, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Total Paid:</Text>
-            <Text style={styles.totalValue}>{formatCurrency(booking.total_price_cents)}</Text>
+            <Text style={styles.totalLabel}>
+              {booking.payment_status === 'deposit_paid' ? 'Deposit Paid:' : 'Total Paid:'}
+            </Text>
+            <Text style={styles.totalValue}>
+              {booking.payment_status === 'deposit_paid' && service?.requires_deposit && service?.deposit_percentage
+                ? formatCurrency(Math.round(booking.total_price_cents * (service.deposit_percentage / 100)))
+                : formatCurrency(booking.total_price_cents)
+              }
+            </Text>
           </View>
 
-          {booking.payment_status === 'deposit_paid' && (
-            <View style={styles.depositNotice}>
-              <Text style={styles.depositText}>
-                ⚠️ Deposit paid. Remaining balance due at session.
+          {/* Payment Status Indicator */}
+          <View style={[
+            styles.paymentStatusBadge,
+            booking.payment_status === 'paid' ? styles.paidBadge :
+            booking.payment_status === 'deposit_paid' ? styles.depositBadge :
+            booking.payment_status === 'pending' ? styles.pendingBadge :
+            styles.failedBadge
+          ]}>
+            <Text style={styles.paymentStatusText}>
+              {booking.payment_status === 'paid' ? '✅ Payment Complete' :
+               booking.payment_status === 'deposit_paid' ? '⚠️ Deposit Paid' :
+               booking.payment_status === 'pending' ? '⏳ Payment Pending' :
+               '❌ Payment Failed'}
+            </Text>
+          </View>
+
+          {booking.payment_status === 'deposit_paid' && service?.requires_deposit && service?.deposit_percentage && (
+            <View style={styles.remainingBalanceNotice}>
+              <Text style={styles.remainingBalanceText}>
+                Remaining balance: {formatCurrency(
+                  booking.total_price_cents - Math.round(booking.total_price_cents * (service.deposit_percentage / 100))
+                )}
+              </Text>
+              <Text style={styles.remainingBalanceSubtext}>
+                Due at time of service
               </Text>
             </View>
           )}
@@ -236,9 +296,16 @@ export default function BookingSuccessScreen() {
           <Text style={styles.noteText}>
             • Contact the studio directly if you need to reschedule or have questions
           </Text>
-          {booking.payment_status === 'deposit_paid' && (
+          {booking.payment_status === 'deposit_paid' && service?.requires_deposit && service?.deposit_percentage && (
             <Text style={styles.noteText}>
-              • Remaining balance is due at the time of your session
+              • Remaining balance of {formatCurrency(
+                booking.total_price_cents - Math.round(booking.total_price_cents * (service.deposit_percentage / 100))
+              )} is due at the time of your session
+            </Text>
+          )}
+          {booking.payment_status === 'pending' && (
+            <Text style={[styles.noteText, styles.warningText]}>
+              • ⚠️ Payment is still pending. Please ensure payment is completed to secure your booking.
             </Text>
           )}
         </View>
@@ -273,6 +340,13 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: '#666',
+    marginTop: 12,
+  },
+  verifyingText: {
+    fontSize: 14,
+    color: '#2081C3',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   errorContainer: {
     flex: 1,
@@ -429,5 +503,61 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  paymentStatusBadge: {
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignSelf: 'center',
+  },
+  paidBadge: {
+    backgroundColor: '#d1fae5',
+    borderColor: '#10b981',
+    borderWidth: 1,
+  },
+  depositBadge: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
+    borderWidth: 1,
+  },
+  pendingBadge: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
+    borderWidth: 1,
+  },
+  failedBadge: {
+    backgroundColor: '#fee2e2',
+    borderColor: '#ef4444',
+    borderWidth: 1,
+  },
+  paymentStatusText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  remainingBalanceNotice: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#fff7ed',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+  },
+  remainingBalanceText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#c2410c',
+    textAlign: 'center',
+  },
+  remainingBalanceSubtext: {
+    fontSize: 12,
+    color: '#9a3412',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  warningText: {
+    color: '#dc2626',
+    fontWeight: '600',
   },
 })

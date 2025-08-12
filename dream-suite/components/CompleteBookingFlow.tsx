@@ -13,6 +13,7 @@ import {
 import { createClient } from '@supabase/supabase-js'
 import ResponsiveContainer from './ui/ResponsiveContainer'
 import ResponsiveGrid from './ui/ResponsiveGrid'
+import PaymentHandler from '../lib/payment-handler'
 import {
   getResponsiveFontSize,
   getResponsivePadding,
@@ -173,6 +174,7 @@ export default function CompleteBookingFlow({ navigation, user, userProfile }: P
           end_time: endDateTime.toISOString(),
           total_price_cents: selectedService.price_cents,
           status: 'pending_payment',
+          payment_status: 'pending',
           notes: bookingForm.notes || null,
         })
         .select()
@@ -180,26 +182,71 @@ export default function CompleteBookingFlow({ navigation, user, userProfile }: P
 
       if (bookingError) throw bookingError
 
-      // For now, just show success - later integrate with Stripe
-      Alert.alert(
-        'Booking Created!', 
-        `Your booking for ${selectedService.name} has been created. In the full version, you would now proceed to payment.`,
-        [
-          { 
-            text: 'OK', 
-            onPress: () => {
-              setCurrentStep('confirmation')
-              // navigation.navigate('Home')
-            }
-          }
-        ]
-      )
+      // Create Stripe checkout session
+      await createStripePaymentSession(bookingData, selectedService)
 
     } catch (err: any) {
       console.error('Error creating booking:', err)
       Alert.alert('Error', 'Failed to create booking: ' + err.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const createStripePaymentSession = async (booking: any, service: Service) => {
+    try {
+      const baseUrl = typeof window !== 'undefined' 
+        ? window.location.origin 
+        : 'http://localhost:3000'
+      
+      const successUrl = `${baseUrl}/booking/success/${booking.id}`
+      const cancelUrl = `${baseUrl}/booking/cancel/${booking.id}`
+
+      const response = await fetch('/api/payments/create-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bookingId: booking.id,
+          serviceId: service.id,
+          serviceName: service.name,
+          priceCents: service.price_cents,
+          clientName: booking.client_name,
+          clientEmail: booking.client_email,
+          requiresDeposit: service.requires_deposit,
+          depositPercentage: service.deposit_percentage,
+          returnUrl: successUrl
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create payment session')
+      }
+
+      const result = await response.json()
+      
+      if (result.success && result.session?.url) {
+        // Use the PaymentHandler to handle cross-platform payment redirect
+        await PaymentHandler.handlePaymentRedirect(
+          { id: result.session.id, url: result.session.url },
+          {
+            onCancel: () => {
+              PaymentHandler.handlePaymentCancel(booking.id)
+            },
+            onError: (error: string) => {
+              Alert.alert('Payment Error', error)
+            }
+          }
+        )
+      } else {
+        throw new Error('Invalid payment session response')
+      }
+
+    } catch (error: any) {
+      console.error('Error creating payment session:', error)
+      Alert.alert('Payment Error', 'Failed to create payment session: ' + error.message)
     }
   }
 

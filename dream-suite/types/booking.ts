@@ -48,6 +48,7 @@ export interface Booking {
   start_time: string
   end_time: string
   status: 'pending_payment' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show'
+  payment_status: 'pending' | 'paid' | 'deposit_paid' | 'partially_paid' | 'failed' | 'expired' | 'refunded'
   total_price_cents: number
   deposit_paid_cents?: number
   final_payment_cents?: number
