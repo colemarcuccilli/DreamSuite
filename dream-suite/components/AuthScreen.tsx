@@ -20,6 +20,8 @@ import {
   isWeb,
   getComponentMaxWidth
 } from '../utils/responsive'
+import { getPasswordStrength } from '../utils/authHelpers'
+import { AuthScreenSkeleton } from './LoadingSkeleton'
 
 interface Props {
   navigation: any
@@ -41,6 +43,9 @@ export default function AuthScreen({ navigation, onAuthSuccess }: Props) {
   const [passwordVisible, setPasswordVisible] = useState(false)
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({})
   const [sessionExpired, setSessionExpired] = useState(false)
+  const [redirecting, setRedirecting] = useState(false)
+  const [countdown, setCountdown] = useState(0)
+  const [initialLoading, setInitialLoading] = useState(true)
 
   // Check if user is already logged in and handle URL tokens
   useEffect(() => {
@@ -123,6 +128,22 @@ export default function AuthScreen({ navigation, onAuthSuccess }: Props) {
     setFormErrors({})
   }
 
+  const startRedirectCountdown = (callback: () => void, seconds: number = 3) => {
+    setRedirecting(true)
+    setCountdown(seconds)
+    
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          callback()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }
+
   const checkUser = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -131,6 +152,8 @@ export default function AuthScreen({ navigation, onAuthSuccess }: Props) {
       }
     } catch (error) {
       console.error('Error checking user:', error)
+    } finally {
+      setInitialLoading(false)
     }
   }
 
@@ -154,8 +177,8 @@ export default function AuthScreen({ navigation, onAuthSuccess }: Props) {
       if (error) throw error
 
       setResetEmailSent(true)
-      setSuccess(`Password reset instructions have been sent to ${email}. Please check your inbox and spam folder.`)
-      setShowForgotPassword(false)
+      setSuccess(`Password reset instructions have been sent to ${email}. Please check your inbox and spam folder. Returning to sign in...`)
+      startRedirectCountdown(() => setShowForgotPassword(false), 4)
     } catch (error: any) {
       setError(error.message || 'Failed to send password reset email. Please try again.')
     } finally {
@@ -193,8 +216,8 @@ export default function AuthScreen({ navigation, onAuthSuccess }: Props) {
         }
 
         if (data.user) {
-          setSuccess('Welcome back!')
-          onAuthSuccess(data.user)
+          setSuccess('Welcome back! Redirecting to dashboard...')
+          startRedirectCountdown(() => onAuthSuccess(data.user), 2)
         }
       } else {
         // Sign up
@@ -220,8 +243,8 @@ export default function AuthScreen({ navigation, onAuthSuccess }: Props) {
 
         if (data.user) {
           if (data.user.email_confirmed_at) {
-            setSuccess('Account created successfully!')
-            onAuthSuccess(data.user)
+            setSuccess('Account created successfully! Redirecting to dashboard...')
+            startRedirectCountdown(() => onAuthSuccess(data.user), 2)
           } else {
             setEmailVerificationSent(true)
             setSuccess(`Account created! Please check your email (${email}) and click the confirmation link to complete your registration.`)
@@ -259,6 +282,11 @@ export default function AuthScreen({ navigation, onAuthSuccess }: Props) {
     }
   }
 
+  // Show loading skeleton during initial session check
+  if (initialLoading) {
+    return <AuthScreenSkeleton />
+  }
+
   // Show forgot password screen
   if (showForgotPassword) {
     return (
@@ -280,7 +308,10 @@ export default function AuthScreen({ navigation, onAuthSuccess }: Props) {
 
             {success ? (
               <View style={styles.successContainer}>
-                <Text style={styles.successText}>{success}</Text>
+                <Text style={styles.successText}>
+                  {success}
+                  {redirecting && countdown > 0 && ` (${countdown})`}
+                </Text>
               </View>
             ) : null}
 
@@ -368,7 +399,10 @@ export default function AuthScreen({ navigation, onAuthSuccess }: Props) {
           {/* Success Messages */}
           {success ? (
             <View style={styles.successContainer}>
-              <Text style={styles.successText}>{success}</Text>
+              <Text style={styles.successText}>
+                {success}
+                {redirecting && countdown > 0 && ` (${countdown})`}
+              </Text>
             </View>
           ) : null}
 
@@ -394,7 +428,13 @@ export default function AuthScreen({ navigation, onAuthSuccess }: Props) {
           )}
 
           {/* Form */}
-          <View style={styles.form}>
+          <View style={[styles.form, loading && styles.formLoading]}>
+            {/* Loading Overlay */}
+            {loading && (
+              <View style={styles.loadingOverlay}>
+                <ActivityIndicator size="large" color="#2081C3" />
+              </View>
+            )}
             {!isLogin && (
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Full Name *</Text>
@@ -461,6 +501,26 @@ export default function AuthScreen({ navigation, onAuthSuccess }: Props) {
               {formErrors.password ? (
                 <Text style={styles.fieldError}>{formErrors.password}</Text>
               ) : null}
+              
+              {/* Password Strength Indicator for Sign Up */}
+              {!isLogin && password.length > 0 && (
+                <View style={styles.passwordStrengthContainer}>
+                  <View style={styles.passwordStrengthBar}>
+                    <View 
+                      style={[
+                        styles.passwordStrengthFill,
+                        { 
+                          width: `${Math.max(16.67, (getPasswordStrength(password).score / 6) * 100)}%`,
+                          backgroundColor: getPasswordStrength(password).color 
+                        }
+                      ]} 
+                    />
+                  </View>
+                  <Text style={[styles.passwordStrengthText, { color: getPasswordStrength(password).color }]}>
+                    {getPasswordStrength(password).label}
+                  </Text>
+                </View>
+              )}
             </View>
 
             {!isLogin && (
@@ -774,5 +834,44 @@ const styles = StyleSheet.create({
   },
   passwordToggleText: {
     fontSize: 18,
+  },
+  passwordStrengthContainer: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  passwordStrengthBar: {
+    flex: 1,
+    height: 4,
+    backgroundColor: '#e5e5e5',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  passwordStrengthFill: {
+    height: '100%',
+    borderRadius: 2,
+    transition: 'width 0.3s ease, background-color 0.3s ease',
+  },
+  passwordStrengthText: {
+    fontSize: 12,
+    fontWeight: '600',
+    minWidth: 60,
+    textAlign: 'right',
+  },
+  formLoading: {
+    opacity: 0.7,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    borderRadius: 12,
   },
 })
